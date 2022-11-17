@@ -1,0 +1,92 @@
+.assign-submission-declaration-modal {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.4rem;
+    width: 450px;
+    padding: 1.3rem;
+    min-height: 250px;
+    position: absolute;
+    top: 20%;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 15px;
+}
+
+.assign-submission-declaration-modal .flex {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.assign-submission-declaration-modal input {
+    padding: 0.7rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    font-size: 0.9em;
+}
+
+.assign-submission-declaration-modal p {
+    font-size: 0.9rem;
+    color: #777;
+    margin: 0.4rem 0 0.2rem;
+}
+
+button {
+    cursor: pointer;
+    border: none;
+    font-weight: 600;
+}
+
+.add-new-declaration {
+    display: inline-block;
+    padding: 0.8rem 1.4rem;
+    font-weight: 700;
+    background-color: black;
+    color: white;
+    border-radius: 5px;
+    text-align: center;
+    font-size: 1em;
+}
+
+/* .add-new-declaration-open {
+    position: absolute;
+    bottom: 150px;
+  } */
+
+.add-new-declaration-close {
+    transform: translate(10px, -20px);
+    padding: 0.5rem 0.7rem;
+    background: #eee;
+    border-radius: 50%;
+}
+
+.assign-submission-declaration-overlay {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(3px);
+    z-index: 1;
+}
+
+.assign-submission-declaration-modal {
+    z-index: 2;
+}
+
+.assign-submission-declaration-hidden {
+    display: none;
+}
+
+.add-new-declaration-container {
+    padding: 0.7rem;
+}
+
+input.form-control.input-error,
+textarea.form-control.input-error {
+    border: 6px solid red;
+}

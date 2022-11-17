@@ -1,0 +1,25 @@
+{{< core/modal }}
+    {{$title}}{{#str}} newdeclaration, assignsubmission_declaration {{/str}}{{/title}}
+    {{$body}}
+        <div class="container">
+            <form id ="add-declaration-form">
+                <div class="form-group">
+                    <label for="inputTitle" class="col-sm-2 col-form-label">{{#str}} title, assignsubmission_declaration {{/str}}</label>
+                    <div class="col-sm-10">
+                        <input class="form-control" id="inputTitle" required >
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="inputContent" class="col-sm-2 col-form-label">{{#str}} content, assignsubmission_declaration {{/str}}</label>
+                    <div class="col-sm-10">
+                        <textarea class="form-control" id="inputContent" required></textarea>
+                    </div>
+                </div>
+            </form>
+        </div>
+    {{/body}}
+    {{$footer}}
+        <button type="button" class="btn btn-primary" data-action="add">{{#str}} add, assignsubmission_declaration {{/str}}</button>
+        <button type="button" class="btn btn-secondary" data-action="cancel">{{#str}} cancel {{/str}}</button>
+    {{/footer}}
+{{/ core/modal }}
