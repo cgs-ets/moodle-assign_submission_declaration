@@ -38,54 +38,63 @@ class assign_submission_declaration extends assign_submission_plugin {
       */
     public function get_settings(MoodleQuickForm $mform) {
         global $DB, $OUTPUT, $PAGE, $CFG;
-        $declarationgroup = array();
-        $defaultselect = 1;
-        if ($this->get_config('declaration') == 0) {
-            $defaultdeclaration = get_string('dummy_declaration', 'assignsubmission_declaration');
+
+        if (!$this->get_config('declaration')) {
+            $d = $this->get_template_context_for_setting_form();
+            $declarations['declarations'][] = $d;
+            $declarationjson = [$d];
         } else {
-            $id = $this->get_config('declaration');
-            $sql = "SELECT *
-                    FROM {assignsubmission_dec_details}
-                    WHERE id = ?";
-            $params = ['id' => $id];
-            $defaultdeclaration = $DB->get_field_sql($sql, $params);
-            $defaultselect = 1;
+            $declarations['declarations'] = $this->get_template_context_for_setting_form(0);
+            $declarationjson = $declarations['declarations'];
+
         }
 
-        $d = new stdClass();
-        $d->declaration_title = get_string('title', 'assignsubmission_declaration');
-        $d->declaration_text  = get_string('dummy_declaration', 'assignsubmission_declaration');
-        $mform->addElement('html',  $OUTPUT->render_from_template('assignsubmission_declaration/assignsubmission_declaration_template', $d));
-
-         $value = get_string('dummy_declaration', 'assignsubmission_declaration');
-        // $declarationgroup[] = $mform->createElement('textarea', 'assignsubmission_declaration_1', '' , /*'disabled="disabled*/'"  wrap="virtual" rows="5" cols="55" value="'. $value . '"placeholder ="' . $value . '"');
-        // $declarationgroup[] = $mform->createElement('checkbox', 'assignsubmission_declaration_1_check', 'Select');
-
-        // $mform->addGroup($declarationgroup, 'assignsubmission_declaration_group', get_string('title', 'assignsubmission_declaration'), ' ', false);
-        // $mform->setDefault('assignsubmission_declaration_1', $defaultdeclaration);
-        // $mform->setDefault('assignsubmission_declaration_1_check', $defaultselect);
-
-
-        $attributes = ['assignmentid' => $this->assignment->get_instance()->id];
+        $mform->addElement('html', $OUTPUT->render_from_template('assignsubmission_declaration/assignsubmission_declaration_template', $declarations));
+        $attributes = ['assignmentid' => 1];
         $mform->addElement('text', 'declarationjson', get_string('declarationjson', 'assignsubmission_declaration'), $attributes); // Add elements to your form.
-        $mform->setType('text', PARAM_RAW);                   // Set type of element.
-
-        $datajson = new stdClass();
-        $datajson->declaration_title = get_string('title', 'assignsubmission_declaration');
-        $datajson->declaration_text = $value;
-        $datajson->id = 1;
-        $datajson->assignment = $this->assignment->get_instance()->id;
-        $datajson->selected = $defaultselect;
-        $declarationjson = [$datajson];
-
+        $mform->setType('declarationjson', PARAM_RAW);   // Set type of element.
         $mform->setDefault('declarationjson', json_encode($declarationjson));        // Default value.
         $mform->hideIf('declarationjson', 'assignsubmission_declaration_enabled', 'notchecked');
         $mform->addElement('html',  $OUTPUT->render_from_template('assignsubmission_declaration/assignsubmission_declaration_add_new', ''));
+        $mform->hideIf('assignsubmission_declaration_group', 'assignsubmission_declaration_enabled', 'notchecked');
         $PAGE->requires->js_call_amd('assignsubmission_declaration/assignsubmission_declaration', 'init');
 
-        $mform->hideIf('assignsubmission_declaration_group', 'assignsubmission_declaration_enabled', 'notchecked');
-
     }
+
+    /**
+     * Get the data to populate setting form template.
+     */
+    private function get_template_context_for_setting_form($new = 1) {
+        global $DB;
+
+        if ($new) {
+
+            $d = new stdClass();
+            $d->declaration_title = get_string('title', 'assignsubmission_declaration');
+            $d->declaration_text  = get_string('dummy_declaration', 'assignsubmission_declaration');
+            $d->selected = 1;
+            $d->id = 1;
+            $d->ordered = 1;
+            $d->assignment = 0;
+            return $d;
+        } else {
+            $ids = $this->get_config('declaration');
+
+            $sql = "SELECT *
+                    FROM {assignsubmission_dec_details}
+                    WHERE id IN ($ids)";
+
+            $results = $DB->get_records_sql($sql);
+            foreach ($results as $result) {
+                $result->sqlid = $result->id;
+                $result->id = $result->ordered;
+            }
+
+            return array_values($results);
+        }
+    }
+
+
 
      /**
       * Save the settings for declaration submission plugin
@@ -97,34 +106,30 @@ class assign_submission_declaration extends assign_submission_plugin {
         global $DB;
 
         $declarations = json_decode($data->declarationjson);
-        error_log(print_r($declarations, true));
-        if (empty($data->assignsubmission_declaration_1_check)) {
+
+        if (empty($data->declarationjson)) {
             $this->set_error("ERROR!");
         } else {
-            // Check if the text is already there.
-            foreach($declarations as $declaration) {
-                if(!isset($declaration->sqlid)) { // It's not in the DB.
-                    $declaration->order = $declaration->id;
+            $dbids = [];
+            foreach ($declarations as $declaration) {
+                if (!isset($declaration->sqlid)) { // It's not in the DB.
+                    $declaration->ordered = $declaration->id;
+                    $declaration->assignment = $this->assignment->get_instance()->id;
                     unset($declaration->id);
+                    $dbids[] = $DB->insert_record('assignsubmission_dec_details', $declaration, true);
+                } else {
+                    // Update text.
+                    $dbids[] = $declaration->sqlid;
+                    $declaration->id = $declaration->sqlid;
+                    unset($declaration->sqlid);
+                    $DB->update_record('assignsubmission_dec_details', $declaration);
                 }
             }
+            $dbids = array_unique($dbids);
+            $dbids = implode(',', $dbids);
+            $this->set_config('declaration', $dbids);
+            $this->set_config('declarationenabled', 1);
 
-            $sql = "SELECT id
-                    FROM {assignsubmission_dec_details}
-                    WHERE declaration_text = ?";
-            $params = ['declaration_text' => $data->assignsubmission_declaration_1];
-            $id = $DB->get_field_sql($sql, $params);
-            if (!$id) {
-                $dataobject = new stdClass();
-                $dataobject->assignment = $this->assignment->get_instance()->id;
-                $dataobject->declaration_text = $data->assignsubmission_declaration_1;
-                $dataobject->selected = 1;
-                $id = $DB->insert_record('assignsubmission_dec_details', $dataobject, true);
-
-                $this->set_config('declaration', $id);
-                $this->set_config('declarationenabled', 1);
-
-            }
             return true;
         }
     }
@@ -138,31 +143,80 @@ class assign_submission_declaration extends assign_submission_plugin {
      * @return true if elements were added to the form
      */
     public function get_form_elements($submission, MoodleQuickForm $mform, stdClass $data) {
-        $elements = array();
-        $submissionid = $submission ? $submission->id : 0;
+        global $OUTPUT, $PAGE;
+
+        list($declarations, $decdetails) = $this->get_template_context_for_student_view();
 
         if (!isset($data->assignsubmission_declaration_1)) {
             $data->assignsubmission_declaration_1 = '';
         }
-        // print_object($submission);
+
         if ($submission) {
             $declarationsubmission = $this->get_declaration_submission($submission->id);
-            // var_dump($declarationsubmission);
+
             if ($declarationsubmission) {
-                $data->assignsubmission_declaration_1 = $declarationsubmission->declaration_text;
-                $mform->addElement('checkbox', 'declaration_text_cbox', "Declaration 1", $declarationsubmission->declaration_text);
-                $mform->setDefault('declaration_text_cbox', $declarationsubmission->checked);
-                $mform->addRule('declaration_text_cbox', null, 'required');
+                list($declarations, $decdetails) = $this->get_template_context_for_student_view(1, $submission);
+                $mform->addElement('html', $OUTPUT->render_from_template('assignsubmission_declaration/assignsubmission_declaration_student_view', $declarations));
             } else {
-                $declarationtext = $this->get_declaration_assessment();
-                // var_dump($declarationtext); exit;
-                $mform->addElement('checkbox', 'declaration_text_cbox', "Declaration 1", $declarationtext->declaration_text);
-                $mform->addRule('declaration_text_cbox', null, 'required');
+                $mform->addElement('html', $OUTPUT->render_from_template('assignsubmission_declaration/assignsubmission_declaration_student_view', $declarations));
             }
 
         }
 
+        $mform->addElement('text', 'declarationjson', get_string('declarationjson', 'assignsubmission_declaration')); // Add elements to your form.
+        $mform->setType('declarationjson', PARAM_RAW);   // Set type of element.
+        $mform->setDefault('declarationjson', json_encode($decdetails));
+        $PAGE->requires->js_call_amd('assignsubmission_declaration/assignsubmission_declaration_student_submit', 'init');
+
         return true;
+    }
+
+    private function get_template_context_for_student_view($withsubmission = 0, $submission = null) {
+        $decdetails = [];
+        $declarations = $this->get_declaration_assessment();
+        if ($withsubmission == 0) {
+            foreach ($declarations as $declaration) {
+                    $dec = new stdClass();
+                    $dec->detail = $declaration->id; // In the DB the detail column is the id of mdl_assignsubmission_declaration table.
+                    $dec->assignment = $declaration->assignment;
+                    $dec->submission = 0;
+                    $dec->selected = 0;
+                    $declaration->selected = 0; // The one that comes from the DB is the selected when setting the submission.
+                    $decdetails[] = $dec;
+            }
+
+            $declarations['declarations'] = array_values($declarations);
+
+        } else {
+            // Check if there are new declarations added after the first time.
+            $alldeclarations = $this->get_declaration_assessment();
+            $declarations = $this->get_declaration_submission($submission->id);
+            $currentids = array_keys($declarations);
+            $allids = array_keys($alldeclarations);
+            $missingids = [];
+
+            foreach ($allids as $id) {
+                if (!in_array($id, $currentids)) {
+                    $missingids[] = $id;
+                }
+
+            }
+
+            foreach ($declarations as $declaration) {
+
+                    $dec = new stdClass();
+                    $dec->detail = $declaration->id; // In the DB the detail column is the id of mdl_assignsubmission_declaration table.
+                    $dec->assignment = $declaration->assignment;
+                    $dec->submission = $declaration->id;
+                    $dec->checked = $declaration->selected;
+                    $decdetails[] = $dec;
+
+            }
+            $declarations['declarations'] = array_values($declarations);
+        }
+
+        return [$declarations, $decdetails];
+
     }
 
      /**
@@ -178,7 +232,8 @@ class assign_submission_declaration extends assign_submission_plugin {
                 JOIN mdl_assignsubmission_dec_details det ON decl.detail = det.id
                 where decl.submission = ?";
         $params = ['submission' => $submissionid];
-        return $DB->get_record_sql($sql, $params);
+
+        return $DB->get_records_sql($sql, $params);
     }
 
     /**
@@ -188,10 +243,10 @@ class assign_submission_declaration extends assign_submission_plugin {
         global $DB;
         $sql = "SELECT *
                 FROM mdl_assignsubmission_dec_details
-                WHERE assignment = ?";
-        $params = ['assignment' => $this->assignment->get_instance()->id];
+                WHERE assignment = ? AND selected = ? ";
+        $params = ['assignment' => $this->assignment->get_instance()->id, 'selected' => 1];
 
-        return $DB->get_record_sql($sql, $params);
+        return $DB->get_records_sql($sql, $params);
     }
 
     /**
@@ -204,7 +259,6 @@ class assign_submission_declaration extends assign_submission_plugin {
      */
     public function save(stdClass $submission, stdClass $data) {
         global $USER, $DB;
-
         $declarationsubmission = $this->get_declaration_submission($submission->id);
 
         $params = array(
@@ -236,7 +290,6 @@ class assign_submission_declaration extends assign_submission_plugin {
           'submissionid' => $submission->id,
           'submissionattempt' => $submission->attemptnumber,
           'submissionstatus' => $submission->status,
-        // 'onlinetextwordcount' => $count,
           'groupid' => $groupid,
           'groupname' => $groupname
           );
@@ -247,14 +300,18 @@ class assign_submission_declaration extends assign_submission_plugin {
               $updatestatus = $DB->update_record('assignsubmission_declaration', $declarationsubmission);
               return  $updatestatus;
           } else {
-              $declarationsubmission = new stdClass();
-              $declarationsubmission->assignment = $this->assignment->get_instance()->id;
-              $declarationsubmission->submission = $submission->id;
-              $declarationsubmission->detail = $this->get_declaration_assessment()->id;
-              $declarationsubmission->checked = $data->declaration_text_cbox;
+              $submmited = json_decode($data->declarationjson);
+              foreach ($submmited as $sub) {
 
-              $declarationsubmission->id = $DB->insert_record('assignsubmission_declaration', $declarationsubmission);
-              $params['objectid'] = $declarationsubmission->id;
+                  $declarationsubmission = new stdClass();
+                  $declarationsubmission->assignment = $sub->assignment;
+                  $declarationsubmission->submission = $submission->id;
+                  $declarationsubmission->detail = $sub->detail;
+                  $declarationsubmission->checked = $sub->selected;
+                  $declarationsubmission->id = $DB->insert_record('assignsubmission_declaration', $declarationsubmission);
+              }
+
+              $params['objectid'] = implode(',', $declarationsubmission->id);
               return $declarationsubmission->id > 0;
           }
 
@@ -267,12 +324,17 @@ class assign_submission_declaration extends assign_submission_plugin {
        * @return bool
        */
     public function is_empty(stdClass $submission) {
+
         $descriptionsubmission = $this->get_declaration_submission($submission->id);
         $selected = 0;
-        if ($descriptionsubmission) {
-            $selected = $descriptionsubmission->checked == 1 ? 0 : 1;
+
+        foreach ($descriptionsubmission as $submitted) {
+            if ($submitted->selected) {
+                $selected++;
+            }
         }
-        return $selected;
+
+        return $selected < 0;
     }
      /**
       * Determine if a submission is empty
@@ -284,10 +346,19 @@ class assign_submission_declaration extends assign_submission_plugin {
       * @return bool
       */
     public function submission_is_empty(stdClass $data) {
-        if (!isset($data->declaration_text_cbox)) {
+
+        $submitteddeclarations = json_decode($data->declarationjson);
+        $selected = 0;
+        foreach ($submitteddeclarations as $submitteddec) {
+            if ($submitteddec->selected == 1) {
+                $selected++;
+            }
+        }
+
+        if ($selected < count($submitteddeclarations)) {
             return true;
         }
-        if (isset($data->declaration_text_cbox)) {
+        if ($selected == count($submitteddeclarations)) {
             return false;
         }
 
@@ -303,9 +374,15 @@ class assign_submission_declaration extends assign_submission_plugin {
      */
     public function view_summary(stdClass $submission, & $showviewlink) {
         $declarationsubmission = $this->get_declaration_submission($submission->id);
+        $str = '';
+        foreach ($declarationsubmission as $ds) {
+
+            $str .= "$ds->declaration_title ✔ <br>";
+
+        }
         $o = '';
         if ($declarationsubmission) {
-              $o = $this->assignment->get_renderer()->container('✔', 'descriptorcontainer');
+              $o = $this->assignment->get_renderer()->container($str, 'descriptorcontainer');
         }
 
         return $o;
@@ -319,8 +396,8 @@ class assign_submission_declaration extends assign_submission_plugin {
         global $DB;
 
         // Will throw exception on failure.
-        $DB->delete_records('assignsubmission_declaration', array('assignment' => $this->assignment->get_instance()->id));
-
+        $t = $DB->delete_records('assignsubmission_dec_details', array('assignment' => $this->assignment->get_instance()->id));
+        $t1 = $DB->delete_records('assignsubmission_declaration', array('assignment' => $this->assignment->get_instance()->id));
         return true;
     }
 

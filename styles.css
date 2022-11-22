@@ -90,3 +90,18 @@ input.form-control.input-error,
 textarea.form-control.input-error {
     border: 6px solid red;
 }
+
+/* Setting form select checbox*/
+[data-select-checbox|="1"] {
+    margin: 0.5rem;
+}
+
+.empty-value-error {
+    border: 2px solid red;
+}
+
+.delete_declaration_icon {
+    color: red;
+    margin-right: 0.5rem;
+    cursor: pointer;
+}

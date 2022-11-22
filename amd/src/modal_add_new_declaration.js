@@ -86,14 +86,36 @@ define(['jquery', 'core/notification', 'core/custom_interaction_events', 'core/m
                 Array.from(newDeclaration.children).forEach((child, index) => {
 
                     const oldID = child.children[index].getAttribute('id');
+
                     if (index == 0) {
                         child.children[index].setAttribute('id', `${oldID}_${newDec.declaration_title} `);
                         child.children[index].innerHTML = newDec.declaration_title;
+                        child.setAttribute('contenteditable', true);
+                        child.addEventListener('input', function (e) {
+                            //title div -> textarea div
+                            console.log(e);
+                            let id = document.getElementById(e.target.id).nextElementSibling.children[0].children[1].children[1].getAttribute('id'); // Get the element that has the textarea nested and that it has the id we need.
+                            id = id[id.length - 1];
+                            console.log(e.target.id);
+                            const data = JSON.parse(document.getElementById('id_declarationjson').value);
+                            const updateData = {
+                                id: id,
+                                declaration_title: document.getElementById(e.target.id).children[0].innerHTML.replace(/^\s+|\s+$/g, '')
+                            };
+                            console.log(updateData);
+                            data.forEach((d) => {
+                                console.log(d);
+                                if (d.id == updateData.id) {
+                                    d.declaration_title = updateData.declaration_title;
+                                }
+                            }, updateData);
+
+                            document.getElementById('id_declarationjson').value = JSON.stringify(data);
+                        });
                     } else {
 
                         Array.from(child.children).forEach((child, index) => {
                             if (index == 0) {
-
 
                                 Array.from(child.children).forEach((child, index) => {
                                     if (index == 0) {
