@@ -111,6 +111,7 @@ textarea.form-control.input-error {
     word-break: break-all;
 }
 
-div#fitem_id_declarationjson {
+div#fitem_id_declarationjson,
+div#fitem_id_submittedwork {
     display: none;
 }

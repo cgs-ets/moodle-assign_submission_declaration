@@ -55,6 +55,14 @@ class assign_submission_declaration extends assign_submission_plugin {
         $mform->setType('declarationjson', PARAM_RAW);   // Set type of element.
         $mform->setDefault('declarationjson', json_encode($declarationjson));        // Default value.
         $mform->hideIf('declarationjson', 'assignsubmission_declaration_enabled', 'notchecked');
+
+        $submmittedwork = $this->assignment->has_instance() && $this->get_assignment_submissions();
+        $mform->addElement('text', 'submittedwork', get_string('submitted', 'assignsubmission_declaration'), $attributes); // Add elements to your form.
+        $mform->setType('submittedwork', PARAM_RAW);   // Set type of element.
+        $mform->setDefault('submittedwork', $submmittedwork);        // Default value.
+        $mform->hideIf('submittedwork', 'assignsubmission_declaration_enabled', 'notchecked');
+
+
         $mform->addElement('html',  $OUTPUT->render_from_template('assignsubmission_declaration/assignsubmission_declaration_add_new', ''));
         $mform->hideIf('assignsubmission_declaration_group', 'assignsubmission_declaration_enabled', 'notchecked');
         $PAGE->requires->js_call_amd('assignsubmission_declaration/assignsubmission_declaration', 'init');
@@ -70,17 +78,18 @@ class assign_submission_declaration extends assign_submission_plugin {
         if ($new) {
 
             $d = new stdClass();
-            $d->declaration_title = get_string('title', 'assignsubmission_declaration');
-            $d->declaration_text  = get_string('dummy_declaration', 'assignsubmission_declaration');
+            $d->declaration_title = get_string('honesty_declaration_title', 'assignsubmission_declaration');
+            $d->declaration_text  = get_string('honesty_declaration', 'assignsubmission_declaration');
             $d->selected = 1;
             $d->id = 1;
             $d->ordered = 1;
             $d->assignment = 0;
             $d->firstdeclaration = 1;
+            $d->nosubmissions = 1;
             return $d;
         } else {
             $ids = $this->get_config('declaration');
-
+            $submittedwork = $this->get_assignment_submissions();
             $sql = "SELECT *
                     FROM {assignsubmission_dec_details}
                     WHERE id IN ($ids) AND deleted = 0";
@@ -93,14 +102,13 @@ class assign_submission_declaration extends assign_submission_plugin {
                 }
                 $result->sqlid = $result->id;
                 $result->id = $result->ordered;
+                $result->nosubmissions = $submittedwork;
                 $counter++;
             }
 
             return array_values($results);
         }
     }
-
-
 
      /**
       * Save the settings for declaration submission plugin
@@ -270,6 +278,19 @@ class assign_submission_declaration extends assign_submission_plugin {
 
         return $DB->get_records_sql($sql, $params);
     }
+
+    private function get_assignment_submissions() {
+        global $DB;
+        $sql = "SELECT *
+                FROM mdl_assignsubmission_declaration
+                WHERE assignment = ?";
+        $params = ['assignment' => $this->assignment->get_instance()->id];
+
+        $result = $DB->get_records_sql($sql, $params);
+
+        return count($result) > 0;
+    }
+
 
     /**
      * Save data to the database and trigger plagiarism plugin,

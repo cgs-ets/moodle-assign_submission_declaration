@@ -181,7 +181,7 @@ const refreshDeleteSectionTitle = () => {
                 if (d.id == id) {
                     const deletesectiontitle = document.getElementById(`delete_declaration_container_${id}`).innerHTML;
                     const currentTitle = document.getElementById(`delete_declaration_container_${id}`).innerHTML.split('</i>')[1];
-                    document.getElementById(`delete_declaration_container_${id}`).innerHTML = deletesectiontitle.replace(currentTitle,`Delete ${d.declaration_title} declaration`);
+                    document.getElementById(`delete_declaration_container_${id}`).innerHTML = deletesectiontitle.replace(currentTitle, `Delete ${d.declaration_title} declaration`);
                     document.getElementById(`fgroup_id_assignsubmission_declaration_group_label_${id}`).setAttribute('data-current-title', d.declaration_title);
                 }
             }, id);
@@ -200,28 +200,52 @@ export const init = () => {
 
     document.getElementById('id_assignsubmission_declaration_enabled').addEventListener('change', selectSubmissionHandler);
     document.querySelector('.add-new-declaration').addEventListener('click', addDeclarationHandler);
+    //Only allow changes when there are no submitted work.
+    if (document.getElementById('id_submittedwork').value == 0) {
+        // Textarea add event.
+        document.querySelectorAll('textarea[id^=id_assignsubmission_declaration_]').forEach((textarea) => {
+            textarea.addEventListener('change', changeTextareaHandler);
+        });
+        // Checkbox add event.
+        document.querySelectorAll('input[id^=id_assignsubmission_declaration_]').forEach((checkbox) => {
 
-    // Textarea add event.
-    document.querySelectorAll('textarea[id^=id_assignsubmission_declaration_]').forEach((textarea) => {
-        textarea.addEventListener('change', changeTextareaHandler);
-    });
-    // Checkbox add event.
-    document.querySelectorAll('input[id^=id_assignsubmission_declaration_]').forEach((checkbox) => {
+            let id = checkbox.getAttribute('id').split('_');
+            if (id[id.length - 1] == 'check') {
+                checkbox.addEventListener('change', selectHandler);
+            }
 
-        let id = checkbox.getAttribute('id').split('_');
-        if (id[id.length - 1] == 'check') {
-            checkbox.addEventListener('change', selectHandler);
-        }
+        });
 
-    });
+        // Delete event listeners
+        document.querySelectorAll('i[id^=delete_declaration_]').forEach((deleteicon) => {
+            deleteicon.addEventListener('click', deleteDeclarationHandler);
+        });
 
-    // Delete event listeners
-    document.querySelectorAll('i[id^=delete_declaration_]').forEach((deleteicon) => {
-        deleteicon.addEventListener('click', deleteDeclarationHandler);
-    });
 
-    makeTitleEditable();
-    refreshDeleteSectionTitle();
+        makeTitleEditable();
+        refreshDeleteSectionTitle();
+
+    } else {
+        // Disable textarea,
+        document.querySelectorAll('textarea[id^=id_assignsubmission_declaration_]').forEach((textarea) => {
+            textarea.setAttribute('disabled', true);
+        });
+        // Disable checkbox
+        document.querySelectorAll('input[id^=id_assignsubmission_declaration_]').forEach((checkbox) => {
+
+            let id = checkbox.getAttribute('id').split('_');
+            if (id[id.length - 1] == 'check') {
+                checkbox.setAttribute('disabled', true);
+            }
+        });
+
+        document.querySelector('.add-new-declaration-container').style.display = 'none';
+        Array.from(document.querySelectorAll('[data-delete-icon]')).forEach(delEl => {
+            delEl.style.display = 'none';
+        });
+        // Show message
+        document.querySelector('.it-has-submissions').removeAttribute('hidden');
+    }
 
 
 };
