@@ -54,7 +54,7 @@ define(['jquery', 'core/notification', 'core/custom_interaction_events', 'core/m
                 lastNumber = lastNumber.filter(val => {
                     if (!isNaN(val)) return val;
                 });
-                const newID = parseInt(lastNumber[lastNumber.length - 1]) + 1;
+                const newID = (JSON.parse(document.getElementById('id_declarationjson').value).length + 1); //parseInt(lastNumber[lastNumber.length - 1]) + 1;
 
                 const newDec = {
                     declaration_title: document.getElementById('inputTitle').value,
@@ -77,39 +77,39 @@ define(['jquery', 'core/notification', 'core/custom_interaction_events', 'core/m
                     return;
                 }
 
-                const declaration = document.getElementById('fgroup_id_assignsubmission_declaration_group');
+                const declaration = document.getElementById('fgroup_id_assignsubmission_declaration_group_1'); // Its the first oneof all.
                 const declarationSubmissionContainer = document.getElementById('id_submissiontypescontainer');
                 const btnContainer = document.querySelector('.add-new-declaration-container');
+
                 let newDeclaration = declaration.cloneNode(true);
-                newDeclaration.removeAttribute('id');
+                newDeclaration.setAttribute('id', `fgroup_id_assignsubmission_declaration_group_${newDec.id}`);
 
                 Array.from(newDeclaration.children).forEach((child, index) => {
 
-                    const oldID = child.children[index].getAttribute('id');
-
                     if (index == 0) {
-                        child.children[index].setAttribute('id', `${oldID}_${newDec.declaration_title} `);
+                        // Title section
+                        const newid = `fgroup_id_assignsubmission_declaration_group_label_${(JSON.parse(document.getElementById('id_declarationjson').value).length + 1)}`; //_${newDec.declaration_title}
+                        child.children[index].setAttribute('id', newid);
+                        newDec.old_title = child.children[index].innerHTML.replace(/^\s+|\s+$/g, '');
+                        child.children[index].setAttribute('data-current-title', newDec.declaration_title);
                         child.children[index].innerHTML = newDec.declaration_title;
+
                         child.setAttribute('contenteditable', true);
                         child.addEventListener('input', function (e) {
                             //title div -> textarea div
-                            console.log(e);
                             let id = document.getElementById(e.target.id).nextElementSibling.children[0].children[1].children[1].getAttribute('id'); // Get the element that has the textarea nested and that it has the id we need.
                             id = id[id.length - 1];
-                            console.log(e.target.id);
+
                             const data = JSON.parse(document.getElementById('id_declarationjson').value);
                             const updateData = {
                                 id: id,
                                 declaration_title: document.getElementById(e.target.id).children[0].innerHTML.replace(/^\s+|\s+$/g, '')
                             };
-                            console.log(updateData);
                             data.forEach((d) => {
-                                console.log(d);
                                 if (d.id == updateData.id) {
                                     d.declaration_title = updateData.declaration_title;
                                 }
                             }, updateData);
-
                             document.getElementById('id_declarationjson').value = JSON.stringify(data);
                         });
                     } else {
@@ -136,8 +136,6 @@ define(['jquery', 'core/notification', 'core/custom_interaction_events', 'core/m
                                             } else if (index == 2) { // Checkbox.
 
                                                 Array.from(child.children).forEach((child, index) => {
-                                                    console.log("CHECKBOX");
-                                                    console.log(child);
                                                     child.value = 0;
                                                     child.removeAttribute('checked');
                                                     child.setAttribute('id', `id_assignsubmission_declaration_${newDec.id}_check`);
@@ -156,8 +154,40 @@ define(['jquery', 'core/notification', 'core/custom_interaction_events', 'core/m
                                                     })
                                                 })
 
+                                            } else if (index == 3) { // Delete section.
+                                                child.setAttribute('data-delete-icon', 1);
+                                                child.removeAttribute('hidden');
+
+                                                Array.from(child.children).forEach((child, index) => {
+                                                    child.setAttribute('id', `delete_declaration_container_${newDec.id}`);
+                                                    Array.from(child.children).forEach((child, index) => {
+                                                        child.setAttribute('id', `delete_declaration_${newDec.id}`); // x icon
+                                                    })
+
+                                                });
+
+                                                // This descriptor is not saved in the DB, so its safe to just remove it from the JSON.
+                                                child.addEventListener('click', function (e) {
+                                                    let id = e.target.id.split('_');
+                                                    id = id[id.length - 1];
+                                                    let data = JSON.parse(document.getElementById('id_declarationjson').value);
+                                                    data = data.filter((d) => {
+                                                        if (d.id != id) {
+                                                            return d;
+                                                        }
+                                                    }, id);
+                                                    document.getElementById('id_declarationjson').value = JSON.stringify(data);
+                                                    // remove element from view.
+                                                    document.getElementById(`fgroup_id_assignsubmission_declaration_group_${id}`).remove();
+
+                                                });
+                                                const spanText = child.innerHTML;
+                                                child.innerHTML = spanText.replace(newDec.old_title, newDec.declaration_title);
+
+
                                             } else {
                                                 child.setAttribute('id', `id_assignsubmission_declaration_${newDec.id}_check`);
+
                                             }
                                         })
                                     }

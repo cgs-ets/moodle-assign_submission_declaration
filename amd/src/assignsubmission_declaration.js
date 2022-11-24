@@ -2,7 +2,6 @@ import ModalAddDeclaration from 'assignsubmission_declaration/modal_add_new_decl
 import ModalFactory from 'core/modal_factory';
 
 const addDeclarationHandler = function (e) {
-    console.log(e);
     var trigger = $('#add-new-declaration-btn');
     ModalFactory.create({
         type: ModalAddDeclaration.TYPE
@@ -42,7 +41,6 @@ const showSubmissionDeclarationElements = function () {
 }
 
 const changeTextareaHandler = (e) => {
-    console.log("changeTextareaHandler");
     // Empty textarea
     if (document.getElementById(e.target.id).value == '') {
         document.getElementById(e.target.id).classList.add('empty-value-error');
@@ -58,9 +56,7 @@ const changeTextareaHandler = (e) => {
         declaration_text: document.getElementById(e.target.id).value
     };
 
-    console.log(updateData);
     data.forEach((d) => {
-        console.log(d);
         if (d.id == updateData.id && updateData.declaration_text != "Declaration description cannot be empty") {
             d.declaration_text = updateData.declaration_text;
         }
@@ -73,8 +69,9 @@ const changeTextareaHandler = (e) => {
 const makeTitleEditable = () => {
 
     Array.from(document.querySelectorAll('#fgroup_id_assignsubmission_declaration_group')).forEach((child, index) => {
+        let count = index + 1;
+        child.setAttribute('id', `fgroup_id_assignsubmission_declaration_group_${count}`);
         Array.from(child.children).forEach((child1, index) => {
-          //  console.log(child1);
             Array.from(child1.children).forEach((child, index) => {
                 if (index == 0 && child.nodeName == 'P') {
                     child.setAttribute('contenteditable', true);
@@ -89,7 +86,7 @@ const makeTitleEditable = () => {
 
 const changeTitleHandler = (e) => {
     //title div -> textarea div
-    console.log(e.target.id);
+
     if (document.getElementById(e.target.id).innerHTML == '') {
         document.getElementById(e.target.id).innerHTML = "Title cannot be empty";
         document.getElementById(e.target.id).style.border = "2px solid red";
@@ -99,15 +96,13 @@ const changeTitleHandler = (e) => {
 
     let id = e.target.id.split('_'); // Get the element that has the textarea nested and that it has the id we need.
     id = id[id.length - 1];
-    console.log(e.target.id);
     const data = JSON.parse(document.getElementById('id_declarationjson').value);
     const updateData = {
         id: id,
         declaration_title: document.getElementById(e.target.id).innerHTML.replace(/^\s+|\s+$/g, '')
     };
-    console.log(updateData);
+
     data.forEach((d) => {
-        console.log(d);
         if (d.id == updateData.id && updateData.declaration_title != 'Title cannot be empty') {
             d.declaration_title = updateData.declaration_title;
         }
@@ -116,9 +111,16 @@ const changeTitleHandler = (e) => {
     document.getElementById('id_declarationjson').value = JSON.stringify(data);
 }
 
+const debounce = (callback, wait) => {
+    let timeout;
+    return (...args) => {
+        clearTimeout(timeout);
+        timeout = setTimeout(function () {
+            callback.apply(this, args);
+        }, wait);
+    };
+}
 const selectHandler = (e) => {
-    console.log("selectHandler");
-
     let id = e.target.id.split('_');
     id = id[id.length - 2];
     let data = JSON.parse(document.getElementById('id_declarationjson').value);
@@ -136,21 +138,57 @@ const selectHandler = (e) => {
     document.getElementById('id_declarationjson').value = JSON.stringify(data);
 }
 const deleteDeclarationHandler = (e) => {
+
     let id = (e.target.id).split('_');
     id = id[id.length - 1];
     let data = JSON.parse(document.getElementById('id_declarationjson').value);
     let updateData = {
         id: id,
-        deleted: 1
+        deleted: 1,
+        indextodelete: -1
     }
-    data.forEach((d) => {
-
-        if (d.id == updateData.id) {
-            d.deleted = updateData.deleted;
+    if (data.length > 1) {
+        data.forEach((d, index) => {
+            if (d.id == updateData.id) {
+                if (d.sqlid != null) {
+                    d.deleted = updateData.deleted;
+                } else {
+                    updateData.indextodelete = index;
+                }
+            }
+        }, updateData);
+        if (updateData.indextodelete > -1) {
+            data.splice(updateData.indextodelete, 1);
         }
-    }, updateData);
 
-    document.getElementById('id_declarationjson').value = JSON.stringify(data);
+        document.getElementById('id_declarationjson').value = JSON.stringify(data);
+        // remove element from view.
+        document.getElementById(`fgroup_id_assignsubmission_declaration_group_${updateData.id}`).remove();
+    } else {
+        console.log("Just one, cant delete");
+    }
+}
+const refreshDeleteSectionTitle = () => {
+    // This function will wait until the user finishes typing the newn title. after, it will refresh the delete title section.
+    window.addEventListener('keyup', debounce(() => {
+        // code you would like to run 1000ms after the keyup event has stopped firing
+        // further keyup events reset the timer, as expected
+        let data = JSON.parse(document.getElementById('id_declarationjson').value);
+        Array.from(document.querySelectorAll('p[id^=fgroup_id_assignsubmission_declaration_group_label_]')).forEach((p, index) => {
+            let id = p.getAttribute('id').split('_');
+            id = id[id.length - 1];
+            data.forEach((d) => {
+                if (d.id == id) {
+                    const deletesectiontitle = document.getElementById(`delete_declaration_container_${id}`).innerHTML;
+                    const currentTitle = document.getElementById(`delete_declaration_container_${id}`).innerHTML.split('</i>')[1];
+                    document.getElementById(`delete_declaration_container_${id}`).innerHTML = deletesectiontitle.replace(currentTitle,`Delete ${d.declaration_title} declaration`);
+                    document.getElementById(`fgroup_id_assignsubmission_declaration_group_label_${id}`).setAttribute('data-current-title', d.declaration_title);
+                }
+            }, id);
+
+        }, data)
+
+    }, 1000))
 }
 
 export const init = () => {
@@ -176,11 +214,14 @@ export const init = () => {
         }
 
     });
+
     // Delete event listeners
-    delete_declaration_1
     document.querySelectorAll('i[id^=delete_declaration_]').forEach((deleteicon) => {
         deleteicon.addEventListener('click', deleteDeclarationHandler);
-    })
+    });
 
     makeTitleEditable();
+    refreshDeleteSectionTitle();
+
+
 };

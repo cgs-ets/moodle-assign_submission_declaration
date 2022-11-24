@@ -1,13 +1,13 @@
 {{#declarations}}
     <div class="form-group row  fitem  ">
         <div class="col-md-3 col-form-label pb-0 pt-0">
-                <label class="d-inline word-break" for="id_declaration_checkbox_{{ordered}}">
+                <label class="d-inline word-break" for="id_declaration_checkbox_{{id}}">
                     {{declaration_title}}
                 </label>
         </div>
         <div class="col-md-9 checkbox">
             <div class="form-check d-flex">
-                <input type="checkbox" name="declaration_checkbox_{{ordered}}" required class="form-check-input " data-sqlid = "[{{id}}]" value="{{selected}}" id="id_declaration_checkbox_{{ordered}}" aria-describedby="id_declaration_checkbox_description_{{ordered}}" {{#selected}}checked{{/selected}}>
+                <input type="checkbox" name="declaration_checkbox_{{id}}" required class="form-check-input " data-sqlid = "[{{id}}]" value="{{selected}}" id="id_declaration_checkbox_{{id}}" aria-describedby="id_declaration_checkbox_description_{{id}}" {{#selected}}checked{{/selected}}>
                     <span id="id_declaration_text_cbox_description">
                         {{declaration_text}}
                     </span>
@@ -18,7 +18,7 @@
 
                 </div>
             </div>
-            <div class="form-control-feedback invalid-feedback" id="id_error_declaration_text_cbox_{{ordered}}">
+            <div class="form-control-feedback invalid-feedback" id="id_error_declaration_text_cbox_{{id}}">
 
             </div>
         </div>

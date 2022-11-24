@@ -105,3 +105,12 @@ textarea.form-control.input-error {
     margin-right: 0.5rem;
     cursor: pointer;
 }
+
+.descriptorcontainer,
+#id_submissionheadercontainer {
+    word-break: break-all;
+}
+
+div#fitem_id_declarationjson {
+    display: none;
+}

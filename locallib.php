@@ -76,18 +76,24 @@ class assign_submission_declaration extends assign_submission_plugin {
             $d->id = 1;
             $d->ordered = 1;
             $d->assignment = 0;
+            $d->firstdeclaration = 1;
             return $d;
         } else {
             $ids = $this->get_config('declaration');
 
             $sql = "SELECT *
                     FROM {assignsubmission_dec_details}
-                    WHERE id IN ($ids)";
+                    WHERE id IN ($ids) AND deleted = 0";
 
             $results = $DB->get_records_sql($sql);
+            $counter = 0;
             foreach ($results as $result) {
+                if ($counter == 0) {
+                    $result->firstdeclaration = 1;
+                }
                 $result->sqlid = $result->id;
                 $result->id = $result->ordered;
+                $counter++;
             }
 
             return array_values($results);
@@ -145,15 +151,10 @@ class assign_submission_declaration extends assign_submission_plugin {
     public function get_form_elements($submission, MoodleQuickForm $mform, stdClass $data) {
         global $OUTPUT, $PAGE;
 
-        list($declarations, $decdetails) = $this->get_template_context_for_student_view();
-
-        if (!isset($data->assignsubmission_declaration_1)) {
-            $data->assignsubmission_declaration_1 = '';
-        }
+        list($declarations, $decdetails) = $this->get_template_context_for_student_view(0, $submission);
 
         if ($submission) {
             $declarationsubmission = $this->get_declaration_submission($submission->id);
-
             if ($declarationsubmission) {
                 list($declarations, $decdetails) = $this->get_template_context_for_student_view(1, $submission);
                 $mform->addElement('html', $OUTPUT->render_from_template('assignsubmission_declaration/assignsubmission_declaration_student_view', $declarations));
@@ -174,15 +175,17 @@ class assign_submission_declaration extends assign_submission_plugin {
     private function get_template_context_for_student_view($withsubmission = 0, $submission = null) {
         $decdetails = [];
         $declarations = $this->get_declaration_assessment();
+
         if ($withsubmission == 0) {
             foreach ($declarations as $declaration) {
-                    $dec = new stdClass();
-                    $dec->detail = $declaration->id; // In the DB the detail column is the id of mdl_assignsubmission_declaration table.
-                    $dec->assignment = $declaration->assignment;
-                    $dec->submission = 0;
-                    $dec->selected = 0;
-                    $declaration->selected = 0; // The one that comes from the DB is the selected when setting the submission.
-                    $decdetails[] = $dec;
+                $dec = new stdClass();
+                $dec->detail = $declaration->id; // In the DB the detail column is the id of mdl_assignsubmission_declaration table. In the student view i need the order
+                $dec->assignment = $declaration->assignment;
+                $dec->submission = $submission->id;
+                $dec->selected = 0;
+                $dec->notindb = 1;
+                $declaration->selected = 0; // The one that comes from the DB is the selected when setting the submission.
+                $decdetails[] = $dec;
             }
 
             $declarations['declarations'] = array_values($declarations);
@@ -199,19 +202,38 @@ class assign_submission_declaration extends assign_submission_plugin {
                 if (!in_array($id, $currentids)) {
                     $missingids[] = $id;
                 }
+            }
 
+            foreach ($missingids as $missing) {
+                $data = clone($declarations[count($declarations)]);
+                $newdec = $alldeclarations[$missing];
+                $data->id = $newdec->id;
+                $data->detail = $newdec->id;
+                $data->declaration_title = $newdec->declaration_title;
+                $data->declaration_text = $newdec->declaration_text;
+                $data->selected = 0;
+                $data->isnew = 1;
+                $data->ordered++;
+                $declarations[$missing] = $data;
             }
 
             foreach ($declarations as $declaration) {
+                $dec = new stdClass();
 
-                    $dec = new stdClass();
-                    $dec->detail = $declaration->id; // In the DB the detail column is the id of mdl_assignsubmission_declaration table.
-                    $dec->assignment = $declaration->assignment;
-                    $dec->submission = $declaration->id;
-                    $dec->checked = $declaration->selected;
-                    $decdetails[] = $dec;
+                if (!isset($declaration->isnew)) {
+                    $dec->detail = $declaration->id;
+                } else {
+                    $dec->detail = $declaration->id;
+                    $dec->isnew = 1;
 
+                }
+
+                $dec->assignment = $declaration->assignment;
+                $dec->submission = $declaration->id;
+                $dec->selected = $declaration->selected;
+                $decdetails[] = $dec;
             }
+
             $declarations['declarations'] = array_values($declarations);
         }
 
@@ -230,8 +252,8 @@ class assign_submission_declaration extends assign_submission_plugin {
         $sql = "SELECT *
                 FROM mdl_assignsubmission_declaration decl
                 JOIN mdl_assignsubmission_dec_details det ON decl.detail = det.id
-                where decl.submission = ?";
-        $params = ['submission' => $submissionid];
+                where decl.submission = ? AND det.deleted = ?";
+        $params = ['submission' => $submissionid, 'deleted' => 0];
 
         return $DB->get_records_sql($sql, $params);
     }
@@ -243,8 +265,8 @@ class assign_submission_declaration extends assign_submission_plugin {
         global $DB;
         $sql = "SELECT *
                 FROM mdl_assignsubmission_dec_details
-                WHERE assignment = ? AND selected = ? ";
-        $params = ['assignment' => $this->assignment->get_instance()->id, 'selected' => 1];
+                WHERE assignment = ? AND selected = ? AND deleted = ?";
+        $params = ['assignment' => $this->assignment->get_instance()->id, 'selected' => 1, 'deleted' => 0];
 
         return $DB->get_records_sql($sql, $params);
     }
@@ -261,6 +283,7 @@ class assign_submission_declaration extends assign_submission_plugin {
         global $USER, $DB;
         $declarationsubmission = $this->get_declaration_submission($submission->id);
 
+        $alldeclarations = $this->get_declaration_assessment();
         $params = array(
         'context' => context_module::instance($this->assignment->get_course_module()->id),
         'courseid' => $this->assignment->get_course()->id,
@@ -293,26 +316,34 @@ class assign_submission_declaration extends assign_submission_plugin {
           'groupid' => $groupid,
           'groupname' => $groupname
           );
+          $updatestatus = true;
+          if ($declarationsubmission && (count($declarationsubmission) == count($alldeclarations))) {
+              foreach ($declarationsubmission as $decsub) {
+                  if ($decsub->deleted != 0) {
+                        $decsub->select = $data->declaration_text_cbox;
+                        $params['objectid'] = $decsub->id;
+                        $updatestatus = $DB->update_record('assignsubmission_declaration', $decsub);
 
-          if ($declarationsubmission) {
-              $declarationsubmission->select = $data->declaration_text_cbox;
-              $params['objectid'] = $declarationsubmission->id;
-              $updatestatus = $DB->update_record('assignsubmission_declaration', $declarationsubmission);
-              return  $updatestatus;
+                  }
+                  return  $updatestatus;
+              }
           } else {
               $submmited = json_decode($data->declarationjson);
+              $declarationsubmissionids = [];
               foreach ($submmited as $sub) {
-
-                  $declarationsubmission = new stdClass();
-                  $declarationsubmission->assignment = $sub->assignment;
-                  $declarationsubmission->submission = $submission->id;
-                  $declarationsubmission->detail = $sub->detail;
-                  $declarationsubmission->checked = $sub->selected;
-                  $declarationsubmission->id = $DB->insert_record('assignsubmission_declaration', $declarationsubmission);
+                  if (isset($sub->isnew) || isset($sub->notindb)) {
+                      $declarationsubmission = new stdClass();
+                      $declarationsubmission->assignment = $sub->assignment;
+                      $declarationsubmission->submission = $submission->id;
+                      $declarationsubmission->detail = $sub->detail;
+                      $declarationsubmission->checked = $sub->selected;
+                      $declarationsubmissionids[] = $DB->insert_record('assignsubmission_declaration', $declarationsubmission);
+                  }
               }
 
-              $params['objectid'] = implode(',', $declarationsubmission->id);
-              return $declarationsubmission->id > 0;
+              $params['objectid'] = implode(',', $declarationsubmissionids);
+
+              return !empty($declarationsubmissionids);
           }
 
     }
@@ -336,18 +367,18 @@ class assign_submission_declaration extends assign_submission_plugin {
 
         return $selected < 0;
     }
-     /**
-      * Determine if a submission is empty
-      *
-      * This is distinct from is_empty in that it is intended to be used to
-      * determine if a submission made before saving is empty.
-      *
-      * @param stdClass $data The submission data
-      * @return bool
-      */
+      /**
+       * Determine if a submission is empty
+       *
+       * This is distinct from is_empty in that it is intended to be used to
+       * determine if a submission made before saving is empty.
+       *
+       * @param stdClass $data The submission data
+       * @return bool
+       */
     public function submission_is_empty(stdClass $data) {
-
         $submitteddeclarations = json_decode($data->declarationjson);
+
         $selected = 0;
         foreach ($submitteddeclarations as $submitteddec) {
             if ($submitteddec->selected == 1) {
@@ -364,34 +395,33 @@ class assign_submission_declaration extends assign_submission_plugin {
 
     }
 
-
-    /**
-     * Display a ✔ in the submission status table
-     *
-     * @param stdClass $submission
-     * @param bool $showviewlink - If the summary has been truncated set this to true
-     * @return string
-     */
+      /**
+       * Display a ✔ in the submission status table
+       *
+       * @param stdClass $submission
+       * @param bool $showviewlink - If the summary has been truncated set this to true
+       * @return string
+       */
     public function view_summary(stdClass $submission, & $showviewlink) {
         $declarationsubmission = $this->get_declaration_submission($submission->id);
+
         $str = '';
         foreach ($declarationsubmission as $ds) {
-
-            $str .= "$ds->declaration_title ✔ <br>";
+            $str .= "<h6> ✔ $ds->declaration_title </h6> <br> <p class ='declaration-submission-summary-text'>$ds->declaration_text</p>";
 
         }
         $o = '';
         if ($declarationsubmission) {
-              $o = $this->assignment->get_renderer()->container($str, 'descriptorcontainer');
+            $o = $this->assignment->get_renderer()->container($str, 'descriptorcontainer');
         }
 
         return $o;
     }
-    /**
-     * The assignment has been deleted - cleanup
-     *
-     * @return bool
-     */
+      /**
+       * The assignment has been deleted - cleanup
+       *
+       * @return bool
+       */
     public function delete_instance() {
         global $DB;
 
@@ -401,12 +431,12 @@ class assign_submission_declaration extends assign_submission_plugin {
         return true;
     }
 
-    /**
-     * Remove a submission.
-     *
-     * @param stdClass $submission The submission
-     * @return boolean
-     */
+      /**
+       * Remove a submission.
+       *
+       * @param stdClass $submission The submission
+       * @return boolean
+       */
     public function remove($submission) {
         global $DB;
         $submissionid = $submission ? $submission->id : 0;
@@ -415,12 +445,12 @@ class assign_submission_declaration extends assign_submission_plugin {
         }
         return true;
     }
-    /**
-     * Return the plugin configs for external functions.
-     *
-     * @return array the list of settings
-     * @since Moodle 3.2
-     */
+      /**
+       * Return the plugin configs for external functions.
+       *
+       * @return array the list of settings
+       * @since Moodle 3.2
+       */
     public function get_config_for_external() {
         return (array) $this->get_config();
     }

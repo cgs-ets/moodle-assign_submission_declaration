@@ -2,7 +2,7 @@
 
 <div id="fgroup_id_assignsubmission_declaration_group" class="form-group row  fitem" data-groupname="assignsubmission_declaration_group">
     <div class="col-md-3 col-form-label d-flex pb-0 pr-md-0" >
-        <p id="fgroup_id_assignsubmission_declaration_group_label_{{ordered}}" class="mb-0 word-break" aria-hidden="true">
+        <p id="fgroup_id_assignsubmission_declaration_group_label_{{ordered}}" class="mb-0 word-break" aria-hidden="true" data-current-title = "{{declaration_title}}">
             {{declaration_title}}
         </p>
 
@@ -21,8 +21,8 @@
                     <input type="checkbox" name="assignsubmission_declaration_{{ordered}}_check"  class="form-check-input " id="id_assignsubmission_declaration_{{ordered}}_check" value="1"{{#selected}} checked {{/selected}}>
                     Select
                 </label>
-                 <label data-fieldtype="checkbox" class="form-check  fitem" data-delete-icon = "1">
-                    <span><i class="fa fa-times delete_declaration_icon" aria-hidden="true" id = "delete_declaration_{{ordered}}"></i>Delete  {{declaration_title}} declaration</span>
+                 <label data-fieldtype="checkbox" class="form-check  fitem" data-delete-icon = "1" {{#firstdeclaration}} hidden {{/firstdeclaration}}>
+                    <span id = "delete_declaration_container_{{ordered}}"><i class="fa fa-times delete_declaration_icon" aria-hidden="true" id = "delete_declaration_{{ordered}}"></i>Delete  {{declaration_title}} declaration</span>
                 </label>
 
 <span class="form-control-feedback invalid-feedback" id="id_error_assignsubmission_declaration_1_check">
