@@ -108,7 +108,7 @@ textarea.form-control.input-error {
 
 .descriptorcontainer,
 #id_submissionheadercontainer {
-    word-break: break-all;
+    word-break: break-word;
 }
 
 div#fitem_id_declarationjson,
