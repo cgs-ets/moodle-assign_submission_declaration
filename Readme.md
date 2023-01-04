@@ -30,7 +30,7 @@ In this example the submissions types selected is Declaration submissions.
 
 The plugin can be also installed by putting the contents of this directory to
 
-    {your/moodle/dirroot}/grade/grading/form/frubric
+    {your/moodle/dirroot}/mod/assign/submission/declaration
 
 Afterwards, log in to your Moodle site as an admin and go to _Site administration >
 Notifications_ to complete the installation.
@@ -43,7 +43,7 @@ to complete the installation from the command line.
 
 ## License ##
 
-2021 Veronica Bermegui
+2022 Veronica Bermegui
 
 This program is free software: you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
