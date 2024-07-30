@@ -1,11 +1,9 @@
-import ModalAddDeclaration from 'assignsubmission_declaration/modal_add_new_declaration';
-import ModalFactory from 'core/modal_factory';
+import NewDeclarationModal from 'assignsubmission_declaration/modal_add_new_declaration';
 
-const addDeclarationHandler = function (e) {
-    var trigger = $('#add-new-declaration-btn');
-    ModalFactory.create({
-        type: ModalAddDeclaration.TYPE
-    }, trigger);
+const addDeclarationHandler = async function (e) {
+    const modal = await NewDeclarationModal.create({})
+    console.log(modal)
+    modal.show();
 
 }
 
@@ -99,7 +97,7 @@ const changeTitleHandler = (e) => {
     const data = JSON.parse(document.getElementById('id_declarationjson').value);
     const updateData = {
         id: id,
-        declaration_title: document.getElementById(e.target.id).innerHTML.replace(/^\s+|\s+$/g, '')
+        declaration_title: (document.getElementById(e.target.id).innerHTML.replace(/^\s+|\s+$/g, ''))
     };
 
     data.forEach((d) => {
@@ -120,6 +118,7 @@ const debounce = (callback, wait) => {
         }, wait);
     };
 }
+
 const selectHandler = (e) => {
     let id = e.target.id.split('_');
     id = id[id.length - 2];
@@ -137,6 +136,7 @@ const selectHandler = (e) => {
 
     document.getElementById('id_declarationjson').value = JSON.stringify(data);
 }
+
 const deleteDeclarationHandler = (e) => {
 
     let id = (e.target.id).split('_');
@@ -168,6 +168,7 @@ const deleteDeclarationHandler = (e) => {
         console.log("Just one, cant delete");
     }
 }
+
 const refreshDeleteSectionTitle = () => {
     // This function will wait until the user finishes typing the newn title. after, it will refresh the delete title section.
     window.addEventListener('keyup', debounce(() => {
@@ -200,6 +201,7 @@ export const init = () => {
 
     document.getElementById('id_assignsubmission_declaration_enabled').addEventListener('change', selectSubmissionHandler);
     document.querySelector('.add-new-declaration').addEventListener('click', addDeclarationHandler);
+
     //Only allow changes when there are no submitted work.
     if (document.getElementById('id_submittedwork').value == 0) {
         // Textarea add event.
