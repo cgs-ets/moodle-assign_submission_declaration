@@ -121,6 +121,13 @@ class assign_submission_declaration extends assign_submission_plugin {
 
         $declarations = json_decode($data->declarationjson);
 
+
+        if (count($declarations) === 1) {
+            if (isset($declarations[0]->selected)) {
+                $declarations[0]->selected = 1;
+            }
+        }
+
         if (empty($data->declarationjson)) {
             $this->set_error("ERROR!");
         } else {
